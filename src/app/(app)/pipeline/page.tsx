@@ -17,6 +17,7 @@ import { PipelineStepperCard } from "@/components/pipeline/PipelineStepperCard";
 import { AiStatsCards } from "@/components/pipeline/AiStatsCards";
 import { RecentAiActivities } from "@/components/pipeline/RecentAiActivities";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { api } from "@/lib/api";
 
 export default function AiPipelinePage() {
   const [data, setData] = useState<AiPipelineProgressResponse | null>(null);
@@ -30,18 +31,8 @@ export default function AiPipelinePage() {
   const fetchPipelineData = useCallback(async (showIndicator = false) => {
     if (showIndicator) setIsRefreshing(true);
     try {
-      // Thử gọi /api/v1/ai/pipeline, nếu lỗi thử /api/v1/settings/ai/pipeline
-      let res = await fetch("http://localhost:8080/api/v1/ai/pipeline", {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        res = await fetch("http://localhost:8080/api/v1/settings/ai/pipeline", {
-          credentials: "include",
-        });
-      }
-
-      if (res.ok) {
-        const json: AiPipelineProgressResponse = await res.json();
+      const json = await api.get<AiPipelineProgressResponse>("/api/v1/ai/pipeline");
+      if (json) {
         setData(json);
       }
     } catch (err) {
@@ -66,18 +57,9 @@ export default function AiPipelinePage() {
     setTriggering(true);
     setTriggerMessage(null);
     try {
-      const res = await fetch("http://localhost:8080/api/v1/ai/trigger", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setTriggerMessage(json.message || "Đã kích hoạt AI viết bài thành công!");
-        // Refresh lại dữ liệu
-        await fetchPipelineData(true);
-      } else {
-        setTriggerMessage("Không thể kích hoạt tự động (Vui lòng kiểm tra kết nối API)");
-      }
+      const json = await api.post<{ message?: string }>("/api/v1/ai/trigger");
+      setTriggerMessage(json?.message || "Đã kích hoạt AI viết bài thành công!");
+      await fetchPipelineData(true);
     } catch (err) {
       console.error("Lỗi kích hoạt:", err);
       setTriggerMessage("Lỗi khi gửi lệnh kích hoạt");
