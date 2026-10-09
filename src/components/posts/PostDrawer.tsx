@@ -29,6 +29,7 @@ interface PostDrawerProps {
 }
 
 export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
+  const [mediaUrls, setMediaUrls] = useState<string[]>(post?.mediaUrls || []);
   const [content, setContent] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -77,7 +78,10 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      await api.post(`/api/v1/posts/${post.id}/image`, formData);
+      const res = await api.post<{ data: PostItem }>(`/api/v1/posts/${post.id}/image`, formData);
+      if (res.data?.mediaUrls) {
+        setMediaUrls(res.data.mediaUrls);
+      }
       setStatusMessage("Đã tải ảnh lên thành công!");
       onRefresh();
     } catch (err: unknown) {
@@ -94,7 +98,10 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
     setRegeneratingImage(true);
     setStatusMessage(null);
     try {
-      await api.post(`/api/v1/posts/${post.id}/image/regenerate`);
+      const res = await api.post<{ data: PostItem }>(`/api/v1/posts/${post.id}/image/regenerate`);
+      if (res.data?.mediaUrls) {
+        setMediaUrls(res.data.mediaUrls);
+      }
       setStatusMessage("✨ AI đã tạo ảnh minh họa mới thành công!");
       onRefresh();
     } catch (err: unknown) {
@@ -111,6 +118,7 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
     setStatusMessage(null);
     try {
       await api.delete(`/api/v1/posts/${post.id}/image`);
+      setMediaUrls([]);
       setStatusMessage("Đã xóa ảnh thành công.");
       onRefresh();
     } catch (err: unknown) {
@@ -126,6 +134,7 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
       setContent(post.content || "");
       setHashtags(post.hashtags || "");
       setScheduledAt(post.scheduledAt ? post.scheduledAt.slice(0, 16) : "");
+      setMediaUrls(post.mediaUrls || []);
       setStatusMessage(null);
       setShowMarkDialog(false);
 
@@ -139,7 +148,7 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
         .catch(() => setAttempts([]))
         .finally(() => setLoadingAttempts(false));
     }
-  }, [post?.id]);
+  }, [post?.id, post?.mediaUrls, post?.content]);
 
   if (!post) return null;
 
@@ -463,9 +472,9 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <ImageIcon className="h-4 w-4 text-slate-500" />
                 Ảnh đính kèm
-                {post.mediaUrls && post.mediaUrls.length > 0 && (
+                {mediaUrls && mediaUrls.length > 0 && (
                   <span className="text-[11px] text-slate-400 font-normal">
-                    ({post.mediaUrls.length})
+                    ({mediaUrls.length})
                   </span>
                 )}
               </label>
@@ -506,57 +515,60 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
                     ) : (
                       <Sparkles className="h-3.5 w-3.5 text-purple-600" />
                     )}
-                    <span>{post.mediaUrls && post.mediaUrls.length > 0 ? "Tạo lại ảnh AI" : "Tạo ảnh AI"}</span>
+                    <span>{mediaUrls && mediaUrls.length > 0 ? "Tạo lại ảnh AI" : "Tạo ảnh AI"}</span>
                   </button>
                 </div>
               )}
             </div>
 
-            {post.mediaUrls && post.mediaUrls.length > 0 ? (
+            {mediaUrls && mediaUrls.length > 0 ? (
               <div className="grid grid-cols-2 gap-3">
-                {post.mediaUrls.map((url, idx) => (
-                  <div
-                    key={idx}
-                    className="group relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-2xs"
-                  >
-                    <img
-                      src={url}
-                      alt="Post attachment"
-                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                    />
-                    {!["PUBLISHING", "PUBLISHED"].includes(post.status) && (
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadingImage || deletingImage}
-                          className="p-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition"
-                          title="Thay thế bằng ảnh khác từ máy"
-                        >
-                          <Upload className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleRegenerateImage}
-                          disabled={regeneratingImage}
-                          className="p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md transition"
-                          title="Tạo lại ảnh bằng AI"
-                        >
-                          <Sparkles className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDeleteImage}
-                          disabled={deletingImage}
-                          className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-md transition"
-                          title="Xóa ảnh này"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {mediaUrls.map((url, idx) => {
+                  const displayUrl = url.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8080/, "");
+                  return (
+                    <div
+                      key={idx}
+                      className="group relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-2xs"
+                    >
+                      <img
+                        src={displayUrl}
+                        alt="Post attachment"
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      />
+                      {!["PUBLISHING", "PUBLISHED"].includes(post.status) && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingImage || deletingImage}
+                            className="p-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition"
+                            title="Thay thế bằng ảnh khác từ máy"
+                          >
+                            <Upload className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRegenerateImage}
+                            disabled={regeneratingImage}
+                            className="p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-md transition"
+                            title="Tạo lại ảnh bằng AI"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteImage}
+                            disabled={deletingImage}
+                            className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-md transition"
+                            title="Xóa ảnh này"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="border border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50/50">

@@ -33,7 +33,10 @@ export default function SchedulePage() {
         api.get<{ data: ScheduleSummary }>("/api/v1/schedule/summary"),
       ]);
 
-      if (postsRes.data) setPosts(postsRes.data);
+      if (postsRes.data) {
+        setPosts(postsRes.data);
+        setSelectedPost((prev) => (prev ? postsRes.data.find((p) => p.id === prev.id) || prev : null));
+      }
       if (summaryRes.data) setSummary(summaryRes.data);
     } catch (err) {
       console.error("Error fetching schedule:", err);
@@ -264,9 +267,9 @@ export default function SchedulePage() {
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
           onRefresh={() => {
-            fetchScheduleData();
+            fetchScheduleData(true);
             if (selectedPost) {
-              api.get<{ data: PostItem }>(`/posts/${selectedPost.id}`).then((res) => {
+              api.get<{ data: PostItem }>(`/api/v1/posts/${selectedPost.id}`).then((res) => {
                 if (res.data) setSelectedPost(res.data);
               });
             }
