@@ -129,8 +129,17 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
     }
   };
 
+  const activePostIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (post) {
+    if (!post) {
+      activePostIdRef.current = null;
+      return;
+    }
+
+    // Chỉ khởi tạo lại dữ liệu form khi mở một bài viết MỚI (tránh bị polling đè mất nội dung đang sửa)
+    if (activePostIdRef.current !== post.id) {
+      activePostIdRef.current = post.id;
       setContent(post.content || "");
       setHashtags(post.hashtags || "");
       setScheduledAt(post.scheduledAt ? post.scheduledAt.slice(0, 16) : "");
@@ -138,7 +147,7 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
       setStatusMessage(null);
       setShowMarkDialog(false);
 
-      // Fetch attempts
+      // Fetch attempts chỉ một lần khi mở bài viết
       setLoadingAttempts(true);
       api
         .get<{ data: PostAttempt[] }>(`/api/v1/posts/${post.id}/attempts`)
@@ -148,7 +157,14 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
         .catch(() => setAttempts([]))
         .finally(() => setLoadingAttempts(false));
     }
-  }, [post?.id, post?.mediaUrls, post?.content]);
+  }, [post?.id]);
+
+  // Cập nhật ảnh nếu có thay đổi từ background (ví dụ worker AI vừa tạo ảnh xong)
+  useEffect(() => {
+    if (post?.mediaUrls && post.mediaUrls.length > 0) {
+      setMediaUrls(post.mediaUrls);
+    }
+  }, [post?.mediaUrls]);
 
   if (!post) return null;
 
@@ -692,10 +708,20 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
         postId={post.id}
         platform={post.platform}
         planTopic={post.planName}
-        onApplyContent={(newContent, newHashtags) => {
+        onApplyContent={async (newContent, newHashtags) => {
           setContent(newContent);
           if (newHashtags) setHashtags(newHashtags);
-          setStatusMessage("Đã áp dụng nội dung mới từ AI!");
+          setStatusMessage("Đang lưu nội dung mới từ AI...");
+          try {
+            await api.patch(`/api/v1/posts/${post.id}`, {
+              content: newContent,
+              hashtags: newHashtags || hashtags,
+            });
+            setStatusMessage("✨ Đã áp dụng và lưu nội dung AI vào bài viết thành công!");
+            onRefresh();
+          } catch {
+            setStatusMessage("Đã áp dụng nội dung từ AI (Hãy bấm 'Lưu thay đổi' để lưu lại).");
+          }
         }}
         onDirectRegenerate={handleRegenerateContent}
         isRegenerating={regenerating}

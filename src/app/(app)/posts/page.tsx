@@ -68,7 +68,17 @@ function PostsPageContent() {
           // Cập nhật realtime dữ liệu cho post đang mở
           const match = res.data.find((p) => p.id === selectedPostRef.current?.id);
           if (match) {
-            setSelectedPost(match);
+            setSelectedPost((prev) => {
+              if (!prev) return match;
+              if (
+                prev.status === match.status &&
+                prev.content === match.content &&
+                JSON.stringify(prev.mediaUrls) === JSON.stringify(match.mediaUrls)
+              ) {
+                return prev;
+              }
+              return match;
+            });
           }
         }
       }

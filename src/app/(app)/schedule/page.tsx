@@ -35,7 +35,19 @@ export default function SchedulePage() {
 
       if (postsRes.data) {
         setPosts(postsRes.data);
-        setSelectedPost((prev) => (prev ? postsRes.data.find((p) => p.id === prev.id) || prev : null));
+        setSelectedPost((prev) => {
+          if (!prev) return null;
+          const match = postsRes.data.find((p) => p.id === prev.id);
+          if (!match) return prev;
+          if (
+            prev.status === match.status &&
+            prev.content === match.content &&
+            JSON.stringify(prev.mediaUrls) === JSON.stringify(match.mediaUrls)
+          ) {
+            return prev;
+          }
+          return match;
+        });
       }
       if (summaryRes.data) setSummary(summaryRes.data);
     } catch (err) {
@@ -49,8 +61,8 @@ export default function SchedulePage() {
     fetchScheduleData(false);
   }, []);
 
-  // Tự động đồng bộ realtime khi có CRUD hoặc theo chu kỳ 4s
-  useRealtimeSync(() => fetchScheduleData(true), { interval: 4000 });
+  // Tự động đồng bộ realtime khi có CRUD hoặc theo chu kỳ 8s
+  useRealtimeSync(() => fetchScheduleData(true), { interval: 8000 });
 
   // Group posts by date (YYYY-MM-DD)
   const postsByDate: Record<string, PostItem[]> = {};
