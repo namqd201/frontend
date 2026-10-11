@@ -110,29 +110,34 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Tên hiển thị / Tên Fanpage <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Tên hiển thị {config.platform === 'FACEBOOK' ? '/ Tên Fanpage' : '/ Tên Profile'} {!accessToken.trim() && <span className="text-rose-500">*</span>}
+                </label>
+                {accessToken.trim() && (
+                  <span className="text-2xs text-emerald-600 font-medium">Tự động nhận diện từ Meta</span>
+                )}
+              </div>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Ví dụ: NQDSM Official Fanpage"
+                placeholder={accessToken.trim() ? "Để trống để tự động lấy từ Meta (hoặc nhập tên tùy ý)" : "Ví dụ: " + config.title + " Chính thức"}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                required
+                required={!accessToken.trim()}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Page ID / Account ID
+                  {config.platform === 'THREADS' ? 'Threads User ID' : 'Page ID / Account ID'}
                 </label>
                 <input
                   type="text"
                   value={platformAccountId}
                   onChange={(e) => setPlatformAccountId(e.target.value)}
-                  placeholder="Ví dụ: 1048291048123"
+                  placeholder={config.platform === 'THREADS' ? "Tự động lấy từ Token" : "Ví dụ: 1048291048123"}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 />
               </div>
@@ -145,7 +150,7 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Ví dụ: nqdsm_tech"
+                  placeholder={config.platform === 'THREADS' ? "Tự động lấy từ Token" : "Ví dụ: nqdsm_tech"}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 />
               </div>
@@ -154,19 +159,23 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-slate-700">
-                  Access Token (Page Token hoặc User Token)
+                  Access Token ({config.platform === 'THREADS' ? 'Threads User Access Token' : 'Page Token hoặc User Token'})
                 </label>
-                <span className="text-2xs text-slate-400">Tùy chọn khi test</span>
+                <span className="text-2xs text-slate-400">Khuyên dùng</span>
               </div>
               <textarea
                 value={accessToken}
                 onChange={(e) => setAccessToken(e.target.value)}
                 rows={3}
-                placeholder="Dán mã Access Token lấy từ Graph API Explorer hoặc phần mềm..."
+                placeholder={config.platform === 'THREADS' 
+                  ? "Dán chuỗi Threads Access Token lấy từ Meta for Developers..." 
+                  : "Dán mã Access Token lấy từ Graph API Explorer hoặc phần mềm..."}
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
               />
               <p className="text-2xs text-slate-500 mt-1">
-                💡 Nếu dán Token thật từ Meta Graph API Explorer, hệ thống sẽ tự động quét danh sách Fanpage và ảnh đại diện thật của bạn!
+                {config.platform === 'THREADS'
+                  ? '💡 Dán User Access Token của Threads. Hệ thống sẽ tự động gọi Meta Graph API để lấy thông tin tài khoản, username và ảnh đại diện thật!'
+                  : '💡 Dán Token thật từ Meta Graph API Explorer, hệ thống sẽ tự động quét danh sách Fanpage và ảnh đại diện thật của bạn!'}
               </p>
             </div>
 
@@ -196,7 +205,7 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                 <p className="text-[11px] text-slate-600 leading-relaxed">
                   {config.platform === 'FACEBOOK'
                     ? 'Mã Graph API Explorer mặc định chỉ sống được 1 - 2 giờ. Để hệ thống lên lịch và đăng bài auto không bị gián đoạn, bạn có thể nhập App ID & Secret để hệ thống tự động đổi thành Page Token vĩnh viễn!'
-                    : 'Mã Threads ngắn hạn mặc định sống 1 giờ. Nếu server đã cấu hình biến môi trường THREADS_APP_SECRET, hệ thống sẽ tự động đổi sang Token 60 ngày. Bạn cũng có thể nhập trực tiếp App ID & Secret bên dưới.'}
+                    : 'Mã Threads ngắn hạn mặc định chỉ sống được 1 giờ. Nếu Render đã có biến THREADS_APP_SECRET (hoặc bạn nhập bên dưới), hệ thống sẽ tự động đổi sang Token 60 ngày!'}
                 </p>
 
                 {showAutoPermanent && (
@@ -235,7 +244,7 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
               </div>
             )}
 
-            {/* Guide Accordion for manual 0-code never expire token */}
+            {/* Guide Accordion for manual 0-code never expire token for Facebook */}
             {config.platform === 'FACEBOOK' && (
               <div className="text-2xs text-slate-500">
                 <button
@@ -253,6 +262,33 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                       <li>Kéo xuống cuối cùng bấm nút <strong>Mở rộng mã truy cập (Extend Access Token)</strong> ➔ Nhận mã 60 ngày.</li>
                       <li>Mở lại Graph API Explorer, dán mã 60 ngày vào ô Token, gọi <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">GET me/accounts?fields=name,id,access_token</code> ➔ Copy chuỗi <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">access_token</code> của Fanpage bạn muốn kết nối và dán vào ô Access Token ở trên!</li>
                     </ol>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Guide Accordion for Threads */}
+            {config.platform === 'THREADS' && (
+              <div className="text-2xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => setShowManualGuide(!showManualGuide)}
+                  className="text-blue-600 hover:underline font-medium flex items-center gap-1"
+                >
+                  <span>{showManualGuide ? '▼ Ẩn hướng dẫn' : '▶ Xem cách lấy Access Token của Threads trên Meta for Developers'}</span>
+                </button>
+                {showManualGuide && (
+                  <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-slate-700 text-[11px] leading-relaxed">
+                    <p className="font-semibold text-slate-800">4 bước lấy Threads User Access Token chuẩn xác:</p>
+                    <ol className="list-decimal pl-4 space-y-1.5 text-slate-600">
+                      <li>Truy cập <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">Meta for Developers</a> ➔ Chọn App của bạn (App đã thêm tính năng Threads API).</li>
+                      <li>Tại thanh menu trái, chọn <strong>Trường hợp sử dụng (Use Cases)</strong> ➔ Bấm <strong>Tùy chỉnh (Customize)</strong> tại mục <strong>Truy cập API Threads (Access Threads API)</strong>.</li>
+                      <li>Kéo xuống mục <strong>Người thử nghiệm Threads (Threads testers)</strong> ➔ Bấm <strong>Thêm thành viên (Add members)</strong> và nhập tên tài khoản Threads của bạn (Sau đó mở app Instagram / Threads ➔ Cài đặt ➔ Quyền trang web ➔ Lời mời thử nghiệm để chấp nhận).</li>
+                      <li>Tại phần <strong>Trình tạo mã người dùng (User Token Generator)</strong> ngay bên dưới ➔ Bấm <strong>Tạo mã (Generate Token)</strong>, cấp quyền <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">threads_basic</code> và <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">threads_content_publish</code> ➔ Copy chuỗi Token dán vào ô <strong>Access Token</strong> ở trên!</li>
+                    </ol>
+                    <p className="text-[10px] text-emerald-700 font-medium bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                      ✨ Hệ thống sẽ tự động dùng App Secret trên Render để đổi sang Token 60 ngày, nhận diện đúng Tên tài khoản, Username và Avatar Threads của bạn!
+                    </p>
                   </div>
                 )}
               </div>

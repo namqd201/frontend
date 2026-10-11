@@ -162,14 +162,17 @@ export default function ChannelsPage() {
     platformAccountId: string;
     accessToken: string;
     username?: string;
+    appId?: string;
+    appSecret?: string;
   }) => {
     try {
       await api.post('/api/v1/social/connections/manual/connect', data);
       showToast(`Đã lưu kết nối thành công cho ${data.platform}`);
       await loadConnections();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Lỗi kết nối thủ công:', err);
-      showToast('Có lỗi xảy ra khi lưu kết nối');
+      const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu kết nối';
+      showToast(msg);
       throw err;
     }
   };
