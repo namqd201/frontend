@@ -170,8 +170,8 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
               </p>
             </div>
 
-            {/* Facebook Permanent Token Extension Section */}
-            {config.platform === 'FACEBOOK' && (
+            {/* Permanent/Long-lived Token Extension Section for Facebook & Threads */}
+            {(config.platform === 'FACEBOOK' || config.platform === 'THREADS') && (
               <div className="p-3.5 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 border border-blue-200/80 rounded-2xl space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -180,7 +180,9 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                     <span className="text-xs font-bold text-slate-800">
-                      Tự động đổi Token Vĩnh viễn (Never Expire)
+                      {config.platform === 'FACEBOOK' 
+                        ? 'Tự động đổi Token Vĩnh viễn (Never Expire)' 
+                        : 'Tự động đổi Token 60 ngày (Long-Lived Token)'}
                     </span>
                   </div>
                   <button
@@ -192,7 +194,9 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Mã Graph API Explorer mặc định chỉ sống được <strong>1 - 2 giờ</strong>. Để hệ thống lên lịch và đăng bài auto không bị gián đoạn, bạn có thể nhập App ID & Secret để hệ thống tự động đổi thành <strong>Page Token vĩnh viễn</strong>!
+                  {config.platform === 'FACEBOOK'
+                    ? 'Mã Graph API Explorer mặc định chỉ sống được 1 - 2 giờ. Để hệ thống lên lịch và đăng bài auto không bị gián đoạn, bạn có thể nhập App ID & Secret để hệ thống tự động đổi thành Page Token vĩnh viễn!'
+                    : 'Mã Threads ngắn hạn mặc định sống 1 giờ. Nếu server đã cấu hình biến môi trường THREADS_APP_SECRET, hệ thống sẽ tự động đổi sang Token 60 ngày. Bạn cũng có thể nhập trực tiếp App ID & Secret bên dưới.'}
                 </p>
 
                 {showAutoPermanent && (
@@ -200,7 +204,7 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Facebook App ID
+                          {config.platform === 'FACEBOOK' ? 'Facebook App ID' : 'Threads App ID'}
                         </label>
                         <input
                           type="text"
@@ -212,7 +216,7 @@ export const ManualConnectModal: React.FC<ManualConnectModalProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Facebook App Secret
+                          {config.platform === 'FACEBOOK' ? 'Facebook App Secret' : 'Threads App Secret'}
                         </label>
                         <input
                           type="password"
