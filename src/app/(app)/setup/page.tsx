@@ -7,12 +7,13 @@ import { PlanWizard } from '@/components/setup/PlanWizard';
 import { ContentPlanItem } from '@/types/plan';
 import { SocialAccount } from '@/types/social';
 import { api } from '@/lib/api';
-import { Calendar, SlidersHorizontal } from 'lucide-react';
+import { Calendar, SlidersHorizontal, Layers } from 'lucide-react';
+import { PostTemplateList } from '@/components/setup/PostTemplateList';
 
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 export default function SetupPage() {
-  const [activeTab, setActiveTab] = useState<'plans' | 'settings'>('plans');
+  const [activeTab, setActiveTab] = useState<'plans' | 'templates' | 'settings'>('plans');
   const [plans, setPlans] = useState<ContentPlanItem[]>([]);
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,7 @@ export default function SetupPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Thiết lập</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Quản lý Kế hoạch đăng bài tự động (Plans) và Cài đặt chung hệ thống.
+            Quản lý Kế hoạch đăng bài (Plans), Form mẫu viết bài (Templates) và Cài đặt chung hệ thống.
           </p>
         </div>
       </div>
@@ -66,6 +67,19 @@ export default function SetupPage() {
         >
           <Calendar className="h-4 w-4" />
           <span>Kế hoạch (Plans)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('templates')}
+          className={`pb-2.5 px-3 text-xs font-semibold transition-colors cursor-pointer border-b-2 flex items-center gap-2 ${
+            activeTab === 'templates'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>Form mẫu bài viết</span>
         </button>
 
         <button
@@ -95,6 +109,8 @@ export default function SetupPage() {
             onOpenCreate={() => setIsWizardOpen(true)}
           />
         )
+      ) : activeTab === 'templates' ? (
+        <PostTemplateList />
       ) : (
         <SettingsTabs />
       )}

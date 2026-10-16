@@ -47,7 +47,12 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
   const [showMarkDialog, setShowMarkDialog] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const handleRegenerateContent = async (customPrompt?: string, tone?: string) => {
+  const handleRegenerateContent = async (
+    customPrompt?: string,
+    tone?: string,
+    templateId?: string,
+    templateStructure?: string
+  ) => {
     if (!post) return;
     setRegenerating(true);
     setStatusMessage(null);
@@ -55,6 +60,8 @@ export function PostDrawer({ post, onClose, onRefresh }: PostDrawerProps) {
       const res = await api.post<{ data: PostItem }>(`/api/v1/posts/${post.id}/regenerate-content`, {
         customPrompt,
         tone,
+        templateId,
+        templateStructure,
       });
       if (res.data) {
         setContent(res.data.content || "");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   X,
   Sparkles,
@@ -22,8 +22,10 @@ import {
   ChevronUp,
   Hash,
   Eye,
+  Layers,
 } from "lucide-react";
 import { ChatAttachment, ChatMessage, PostChatResponse } from "@/types/post";
+import { PostTemplateItem } from "@/types/template";
 import api from "@/lib/api";
 
 interface AIRewriteDialogProps {
@@ -34,7 +36,12 @@ interface AIRewriteDialogProps {
   platform: string;
   planTopic?: string;
   onApplyContent: (newContent: string, newHashtags?: string) => void;
-  onDirectRegenerate: (customPrompt?: string, tone?: string) => Promise<void>;
+  onDirectRegenerate: (
+    customPrompt?: string,
+    tone?: string,
+    templateId?: string,
+    templateStructure?: string
+  ) => Promise<void>;
   isRegenerating: boolean;
 }
 
@@ -72,6 +79,27 @@ export function AIRewriteDialog({
   const [activeTab, setActiveTab] = useState<"form" | "chat">("form");
   const [customPrompt, setCustomPrompt] = useState("");
   const [selectedTone, setSelectedTone] = useState("");
+
+  // Templates State
+  const [templates, setTemplates] = useState<PostTemplateItem[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [showTemplatePreview, setShowTemplatePreview] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    api.get<PostTemplateItem[]>("/api/v1/templates")
+      .then((res) => {
+        const list = res || [];
+        setTemplates(list);
+        const defaultTpl = list.find((t) => t.isDefault);
+        if (defaultTpl) {
+          setSelectedTemplateId(defaultTpl.id);
+        }
+      })
+      .catch((err) => console.error("Error loading templates:", err));
+  }, [isOpen]);
+
+  const activeTemplate = templates.find((t) => t.id === selectedTemplateId);
 
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -213,7 +241,12 @@ export function AIRewriteDialog({
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onDirectRegenerate(customPrompt.trim() || undefined, selectedTone || undefined);
+    await onDirectRegenerate(
+      customPrompt.trim() || undefined,
+      selectedTone || undefined,
+      selectedTemplateId || undefined,
+      activeTemplate?.structure || undefined
+    );
     onClose();
   };
 
@@ -241,6 +274,9 @@ export function AIRewriteDialog({
       const res = await api.post<{ data: PostChatResponse }>(`/api/v1/posts/${postId}/chat`, {
         message: msg || "Hãy phân tích hình ảnh/tệp đính kèm tôi vừa gửi và đề xuất nội dung bài đăng phù hợp.",
         currentContent,
+        templateId: selectedTemplateId || undefined,
+        templateStructure: activeTemplate?.structure || undefined,
+        customTone: selectedTone || undefined,
         history: chatMessages.slice(-6).map((m) => ({
           role: m.role,
           content: m.content,
@@ -389,6 +425,58 @@ export function AIRewriteDialog({
         <div className="flex-1 overflow-y-auto p-5">
           {activeTab === "form" ? (
             <form onSubmit={handleFormSubmit} className="space-y-4">
+              {/* Template Selection */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                    <Layers className="h-4 w-4 text-blue-600" />
+                    <span>Chọn Form mẫu bài viết (Post Template):</span>
+                  </label>
+                  {activeTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplatePreview(!showTemplatePreview)}
+                      className="text-[11px] text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye className="h-3 w-3" />
+                      {showTemplatePreview ? "Ẩn dàn ý mẫu" : "Xem dàn ý mẫu"}
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => {
+                    setSelectedTemplateId(e.target.value);
+                    if (e.target.value) setShowTemplatePreview(true);
+                  }}
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
+                >
+                  <option value="">-- Không áp dụng Form mẫu (Viết tự do) --</option>
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name} {tpl.isDefault ? "★ (Mặc định)" : ""} {tpl.isSystem ? "[Hệ thống]" : "[Của bạn]"}
+                    </option>
+                  ))}
+                </select>
+
+                {activeTemplate && showTemplatePreview && (
+                  <div className="mt-2 p-2.5 bg-white rounded-lg border border-slate-200/80 text-xs animate-in fade-in duration-150">
+                    {activeTemplate.description && (
+                      <p className="text-[11px] text-slate-500 italic mb-1.5">
+                        {activeTemplate.description}
+                      </p>
+                    )}
+                    <div className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider mb-1">
+                      Cấu trúc dàn ý AI sẽ bám sát:
+                    </div>
+                    <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-100">
+                      {activeTemplate.structure}
+                    </pre>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1.5">
                   Mô tả yêu cầu cụ thể của bạn cho AI:
@@ -484,6 +572,42 @@ export function AIRewriteDialog({
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
             >
+              {/* Template selector in Chat */}
+              <div className="mb-2.5 px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                  <span className="text-[11px] text-slate-600 font-medium shrink-0">Form mẫu:</span>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="text-xs py-1 px-2 border border-slate-200 rounded bg-white font-medium text-slate-800 focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">Tự do (Không dùng form)</option>
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name} {tpl.isDefault ? "★" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {activeTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplatePreview(!showTemplatePreview)}
+                    className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                  >
+                    {showTemplatePreview ? "Ẩn dàn ý" : "Xem dàn ý"}
+                  </button>
+                )}
+              </div>
+              {activeTemplate && showTemplatePreview && (
+                <div className="mb-2.5 p-2 bg-blue-50/50 border border-blue-200 rounded-lg text-xs animate-in fade-in duration-150">
+                  <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto">
+                    {activeTemplate.structure}
+                  </pre>
+                </div>
+              )}
+
               {/* Chat Messages Timeline */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {chatMessages.map((m, idx) => (

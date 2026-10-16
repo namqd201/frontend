@@ -10,6 +10,7 @@ export interface UserSettings {
   defaultCta?: string;
   emojiPolicy: "NONE" | "MINIMAL" | "MODERATE" | "EXPRESSIVE";
   extraGuidelines?: string;
+  samplePosts?: string;
   textProviderPrimary: string;
   textProviderFallback: string;
   imageProviderPrimary: string;

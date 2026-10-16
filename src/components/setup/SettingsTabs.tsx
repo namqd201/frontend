@@ -106,11 +106,45 @@ export function SettingsTabs() {
               Phong cách viết chi tiết (Writing Style)
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={settings.writingStyle || ""}
               onChange={(e) => setSettings({ ...settings, writingStyle: e.target.value })}
               className="w-full p-3 text-sm rounded-lg border border-[#E2E8F0] focus:outline-2 focus:outline-[#2563EB] bg-[#FAFAFA]"
               placeholder="Ví dụ: Súc tích, không sáo rỗng, dùng số liệu và gạch đầu dòng rõ ràng"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">
+              Quy tắc hành văn bổ sung (Extra Guidelines)
+            </label>
+            <textarea
+              rows={2}
+              value={settings.extraGuidelines || ""}
+              onChange={(e) => setSettings({ ...settings, extraGuidelines: e.target.value })}
+              className="w-full p-3 text-sm rounded-lg border border-[#E2E8F0] focus:outline-2 focus:outline-[#2563EB] bg-[#FAFAFA]"
+              placeholder="Ví dụ: Xưng hô 'Mình - Bạn', không dùng thuật ngữ tiếng Anh không giải thích, ngắt đoạn ngắn thoáng mắt..."
+            />
+          </div>
+
+          <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-[#1E3A8A] uppercase tracking-wider">
+                Bài viết mẫu chuẩn phong cách (Few-Shot Long-term Memory)
+              </label>
+              <span className="text-[11px] font-semibold text-[#2563EB] bg-white px-2 py-0.5 rounded-full border border-blue-200">
+                AI sẽ học và không bao giờ quên phong cách này
+              </span>
+            </div>
+            <p className="text-xs text-[#475569] mb-2.5 leading-relaxed">
+              Dán vào đây 1 - 3 bài viết thực tế bạn từng viết tâm đắc nhất. AI sẽ phân tích cấu trúc câu, nhịp điệu hành văn, từ ngữ xưng hô và cá tính riêng từ bài mẫu để áp dụng cho mọi bài viết tạo ra sau này.
+            </p>
+            <textarea
+              rows={5}
+              value={settings.samplePosts || ""}
+              onChange={(e) => setSettings({ ...settings, samplePosts: e.target.value })}
+              className="w-full p-3 text-xs font-mono rounded-lg border border-blue-200 focus:outline-2 focus:outline-[#2563EB] bg-white text-[#0F172A]"
+              placeholder={"[Bài mẫu 1]\nChào anh chị em, hôm nay mình muốn kể về một case study thực tế...\n\n---\n\n[Bài mẫu 2]\n..."}
             />
           </div>
 
