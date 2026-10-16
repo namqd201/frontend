@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PostTemplateItem } from '@/types/template';
-import { api } from '@/lib/api';
+import { api, ApiResponse } from '@/lib/api';
 import {
   Sparkles,
   Plus,
@@ -29,11 +29,18 @@ export function PostTemplateList() {
     setLoading(true);
     setActionError(null);
     try {
-      const res = await api.get<PostTemplateItem[]>('/api/v1/templates');
-      setTemplates(res || []);
+      const res = await api.get<ApiResponse<PostTemplateItem[]> | PostTemplateItem[]>('/api/v1/templates');
+      let list: PostTemplateItem[] = [];
+      if (Array.isArray(res)) {
+        list = res;
+      } else if (res && Array.isArray((res as ApiResponse<PostTemplateItem[]>).data)) {
+        list = (res as ApiResponse<PostTemplateItem[]>).data!;
+      }
+      setTemplates(list);
     } catch (err: unknown) {
       console.error('Failed to fetch templates:', err);
       setActionError((err as Error).message || 'Không thể tải danh sách form mẫu');
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -104,7 +111,7 @@ export function PostTemplateList() {
         <div className="py-16 text-center text-xs text-slate-400 animate-pulse">
           Đang tải danh sách form mẫu bài viết...
         </div>
-      ) : templates.length === 0 ? (
+      ) : !Array.isArray(templates) || templates.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
           <BookOpen className="h-10 w-10 text-slate-300 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-slate-800">Chưa có form mẫu nào</h3>
@@ -114,7 +121,7 @@ export function PostTemplateList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {templates.map((tpl) => (
+          {Array.isArray(templates) && templates.map((tpl) => (
             <div
               key={tpl.id}
               className={`bg-white rounded-xl border p-5 shadow-xs transition-all flex flex-col justify-between ${

@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { ChatAttachment, ChatMessage, PostChatResponse } from "@/types/post";
 import { PostTemplateItem } from "@/types/template";
-import api from "@/lib/api";
+import api, { ApiResponse } from "@/lib/api";
 
 interface AIRewriteDialogProps {
   isOpen: boolean;
@@ -87,19 +87,29 @@ export function AIRewriteDialog({
 
   useEffect(() => {
     if (!isOpen) return;
-    api.get<PostTemplateItem[]>("/api/v1/templates")
+    api.get<ApiResponse<PostTemplateItem[]> | PostTemplateItem[]>("/api/v1/templates")
       .then((res) => {
-        const list = res || [];
+        let list: PostTemplateItem[] = [];
+        if (Array.isArray(res)) {
+          list = res;
+        } else if (res && Array.isArray((res as ApiResponse<PostTemplateItem[]>).data)) {
+          list = (res as ApiResponse<PostTemplateItem[]>).data!;
+        }
         setTemplates(list);
         const defaultTpl = list.find((t) => t.isDefault);
         if (defaultTpl) {
           setSelectedTemplateId(defaultTpl.id);
         }
       })
-      .catch((err) => console.error("Error loading templates:", err));
+      .catch((err) => {
+        console.error("Error loading templates:", err);
+        setTemplates([]);
+      });
   }, [isOpen]);
 
-  const activeTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const activeTemplate = Array.isArray(templates)
+    ? templates.find((t) => t.id === selectedTemplateId)
+    : undefined;
 
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -453,7 +463,7 @@ export function AIRewriteDialog({
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
                 >
                   <option value="">-- Không áp dụng Form mẫu (Viết tự do) --</option>
-                  {templates.map((tpl) => (
+                  {Array.isArray(templates) && templates.map((tpl) => (
                     <option key={tpl.id} value={tpl.id}>
                       {tpl.name} {tpl.isDefault ? "★ (Mặc định)" : ""} {tpl.isSystem ? "[Hệ thống]" : "[Của bạn]"}
                     </option>
@@ -583,7 +593,7 @@ export function AIRewriteDialog({
                     className="text-xs py-1 px-2 border border-slate-200 rounded bg-white font-medium text-slate-800 focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="">Tự do (Không dùng form)</option>
-                    {templates.map((tpl) => (
+                    {Array.isArray(templates) && templates.map((tpl) => (
                       <option key={tpl.id} value={tpl.id}>
                         {tpl.name} {tpl.isDefault ? "★" : ""}
                       </option>
