@@ -133,12 +133,12 @@ export function PostTemplateModal({
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
               Mô tả ngắn (Khi nào nên dùng)
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ví dụ: Phù hợp bài ra mắt sản phẩm mới, chạy khuyến mãi..."
-              className="w-full h-10 px-3 text-sm rounded-lg border border-slate-200 focus:outline-2 focus:outline-blue-600 bg-slate-50"
+              placeholder="Ví dụ: Phù hợp bài ra mắt sản phẩm mới, chạy khuyến mãi, giới thiệu tính năng website..."
+              className="w-full p-3 text-sm rounded-lg border border-slate-200 focus:outline-2 focus:outline-blue-600 bg-slate-50 leading-relaxed"
             />
           </div>
 
