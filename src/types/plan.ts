@@ -57,4 +57,42 @@ export interface CreatePlanPayload {
   imageStyle?: string;
   imageFailurePolicy?: string;
   contentMode?: string;
+  angles?: string[];
+}
+
+export interface ContentPillar {
+  pillar: string;
+  description: string;
+}
+
+export interface PlanAngleItem {
+  dayIndex: number;
+  angle: string;
+  pillar?: string;
+  hook?: string;
+}
+
+export interface MarketingStrategyResponse {
+  url: string;
+  brandName: string;
+  industry: string;
+  summary: string;
+  targetAudience: string;
+  uniqueSellingPoints: string[];
+  contentPillars: ContentPillar[];
+  suggestedCampaignName: string;
+  suggestedTopic: string;
+  suggestedTone: string;
+  suggestedInstructions: string;
+  suggestedAngles: PlanAngleItem[];
+  rawExtractedLength: number;
+  modelUsed: string;
+}
+
+export interface AnalyzeWebsitePayload {
+  url: string;
+  targetAudienceHint?: string;
+  campaignDurationDays?: number;
+  postsPerDay?: number;
+  language?: string;
 }

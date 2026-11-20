@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CalculatedSlot, CreatePlanPayload, PlanPreviewData } from '@/types/plan';
+import { CalculatedSlot, CreatePlanPayload, PlanPreviewData, MarketingStrategyResponse } from '@/types/plan';
 import { SocialAccount } from '@/types/social';
 import { api } from '@/lib/api';
 
@@ -47,6 +47,17 @@ export const PlanWizard: React.FC<PlanWizardProps> = ({
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [includeImage, setIncludeImage] = useState(true);
   const [imageStyle, setImageStyle] = useState('minimalist');
+
+  // AI Website Auto-Pilot State
+  const [creationMode, setCreationMode] = useState<'ai_url' | 'manual'>('ai_url');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [targetAudienceHint, setTargetAudienceHint] = useState('');
+  const [campaignDays, setCampaignDays] = useState(7);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [strategyResult, setStrategyResult] = useState<MarketingStrategyResponse | null>(null);
+  const [appliedStrategy, setAppliedStrategy] = useState(false);
+  const [generatedAngles, setGeneratedAngles] = useState<string[]>([]);
 
   // Auto select active channels
   useEffect(() => {
@@ -172,6 +183,57 @@ export const PlanWizard: React.FC<PlanWizardProps> = ({
     }
   };
 
+  const handleAnalyzeWebsite = async () => {
+    if (!websiteUrl.trim()) {
+      setAnalysisError('Vui lòng nhập địa chỉ website hoặc landing page.');
+      return;
+    }
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      const res = await api.post<MarketingStrategyResponse>('/api/v1/plans/analyze-website', {
+        url: websiteUrl.trim(),
+        targetAudienceHint: targetAudienceHint.trim() || undefined,
+        campaignDurationDays: campaignDays,
+        postsPerDay,
+        language: 'vi',
+      });
+      if (res && res.brandName) {
+        setStrategyResult(res);
+      } else {
+        throw new Error('Không nhận được dữ liệu chiến lược từ AI');
+      }
+    } catch (err: unknown) {
+      console.error('Lỗi phân tích website:', err);
+      const msg = err instanceof Error ? err.message : 'Không thể phân tích website. Vui lòng kiểm tra lại link.';
+      setAnalysisError(msg);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleApplyStrategy = () => {
+    if (!strategyResult) return;
+    setName(strategyResult.suggestedCampaignName || `Chiến dịch ${strategyResult.brandName}`);
+    setTopic(strategyResult.suggestedTopic || strategyResult.summary);
+    setInstructions(
+      strategyResult.suggestedInstructions ||
+      `Khách hàng mục tiêu: ${strategyResult.targetAudience}. Nhấn mạnh USP: ${strategyResult.uniqueSellingPoints.join(', ')}`
+    );
+    setTone(strategyResult.suggestedTone || 'Chuyên nghiệp, Thân thiện');
+
+    const start = new Date();
+    const end = new Date(Date.now() + campaignDays * 86400000);
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+
+    if (strategyResult.suggestedAngles && strategyResult.suggestedAngles.length > 0) {
+      setGeneratedAngles(strategyResult.suggestedAngles.map((a) => a.angle));
+    }
+
+    setAppliedStrategy(true);
+  };
+
   const handleCreate = async (activateImmediately: boolean) => {
     setSubmitting(true);
     try {
@@ -188,6 +250,7 @@ export const PlanWizard: React.FC<PlanWizardProps> = ({
         targetAccountIds: selectedAccountIds,
         includeImage,
         imageStyle,
+        angles: generatedAngles.length > 0 ? generatedAngles : undefined,
       };
 
       // 1. Tạo bản nháp
@@ -257,45 +320,366 @@ export const PlanWizard: React.FC<PlanWizardProps> = ({
         <div className="p-6 overflow-y-auto flex-1 space-y-5">
           {/* BƯỚC 1: Chủ đề & Trọng tâm */}
           {step === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Tên kế hoạch *
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ví dụ: Chiến dịch mùa hè, Giới thiệu sản phẩm mới..."
-                  className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
+            <div className="space-y-5">
+              {/* Chuyển đổi chế độ: AI Auto-Pilot vs Thủ công */}
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('ai_url')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    creationMode === 'ai_url'
+                      ? 'bg-white text-blue-600 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="text-base">⚡</span>
+                  AI Auto-Pilot từ Website
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('manual')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    creationMode === 'manual'
+                      ? 'bg-white text-blue-600 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="text-base">✍️</span>
+                  Tự nhập thủ công
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Chủ đề & Mô tả nội dung *
-                </label>
-                <textarea
-                  rows={4}
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Mô tả bằng ngôn ngữ tự nhiên: Ví dụ: Tuần này chia sẻ mẹo làm việc hiệu quả, câu chuyện khởi nghiệp, kinh nghiệm tiếp thị số cho người mới..."
-                  className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
-              </div>
+              {/* Chế độ 1: AI Auto-Pilot từ Website */}
+              {creationMode === 'ai_url' && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50/60 p-4 rounded-xl border border-blue-100">
+                    <div className="flex items-start gap-2.5 mb-3">
+                      <span className="text-xl">🌐</span>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          Quét Website & Tự Động Lập Chiến Lược Marketing
+                        </h4>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Dán địa chỉ website hoặc landing page sản phẩm. AI sẽ tự động đọc nội dung, bóc tách USP, tệp khách hàng và lên kế hoạch bài đăng chi tiết.
+                        </p>
+                      </div>
+                    </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Hướng dẫn bổ sung / Trọng tâm (Tùy chọn)
-                </label>
-                <input
-                  type="text"
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  placeholder="Ví dụ: Nhấn mạnh lời kêu gọi đăng ký dùng thử, kèm hashtag #Startup #Tech"
-                  className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
-              </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                          Địa chỉ Website / Landing Page *
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={websiteUrl}
+                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                            placeholder="https://example.com/san-pham-hoac-trang-chu"
+                            className="flex-1 px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            disabled={isAnalyzing}
+                            onClick={handleAnalyzeWebsite}
+                            className={`px-4 py-2 text-xs font-semibold rounded-xl text-white flex items-center gap-2 transition-all shrink-0 ${
+                              isAnalyzing
+                                ? 'bg-blue-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 shadow-sm'
+                            }`}
+                          >
+                            {isAnalyzing ? (
+                              <>
+                                <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                                Đang quét...
+                              </>
+                            ) : (
+                              <>
+                                <span>🔍</span>
+                                Phân tích & Lập Kế Hoạch
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                            Quy mô chiến dịch đề xuất
+                          </label>
+                          <div className="flex gap-2">
+                            {[
+                              { days: 7, label: '7 ngày' },
+                              { days: 14, label: '14 ngày' },
+                              { days: 30, label: '30 ngày' },
+                            ].map((d) => (
+                              <button
+                                key={d.days}
+                                type="button"
+                                onClick={() => setCampaignDays(d.days)}
+                                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                                  campaignDays === d.days
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                {d.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                            Gợi ý tệp khách hàng (Tùy chọn)
+                          </label>
+                          <input
+                            type="text"
+                            value={targetAudienceHint}
+                            onChange={(e) => setTargetAudienceHint(e.target.value)}
+                            placeholder="Ví dụ: Freelancer, chủ shop thời trang..."
+                            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Thông báo lỗi khi phân tích */}
+                  {analysisError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>{analysisError}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAnalysisError(null)}
+                        className="text-red-500 hover:text-red-700 font-bold ml-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Trạng thái đang phân tích */}
+                  {isAnalyzing && (
+                    <div className="p-5 bg-white border border-blue-200 rounded-xl space-y-3 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="animate-spin inline-block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">
+                            AI đang nghiên cứu website của bạn...
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Đang cào dữ liệu qua Jina Reader, trích xuất USP và thiết kế lộ trình bài đăng đa kênh.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-600 animate-pulse rounded-full w-2/3" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kết quả phân tích Chiến lược Marketing */}
+                  {strategyResult && !isAnalyzing && (
+                    <div className="border border-slate-200 rounded-2xl bg-white p-4 space-y-4 shadow-xs">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🎯</span>
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900">
+                              Báo Cáo Chiến Lược: {strategyResult.brandName}
+                            </h3>
+                            <p className="text-[11px] text-slate-500">
+                              Ngành: <span className="font-medium text-slate-700">{strategyResult.industry}</span> • Nguồn: {strategyResult.url}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 rounded-full">
+                          {strategyResult.suggestedAngles?.length || 0} bài viết đề xuất
+                        </span>
+                      </div>
+
+                      {/* Tóm tắt mô hình */}
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-xs text-slate-700 leading-relaxed">
+                        <span className="font-semibold text-slate-900">Tổng quan: </span>
+                        {strategyResult.summary}
+                      </div>
+
+                      {/* ICP & USPs */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl">
+                          <h4 className="font-bold text-blue-900 mb-1 flex items-center gap-1.5">
+                            <span>👥</span> Khách Hàng Mục Tiêu (ICP)
+                          </h4>
+                          <p className="text-slate-600 leading-relaxed text-[11px]">
+                            {strategyResult.targetAudience}
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                          <h4 className="font-bold text-emerald-900 mb-1 flex items-center gap-1.5">
+                            <span>✨</span> Lợi Thế Cốt Lõi (USPs)
+                          </h4>
+                          <ul className="space-y-1 text-[11px] text-slate-600">
+                            {strategyResult.uniqueSellingPoints?.map((usp, idx) => (
+                              <li key={idx} className="flex items-start gap-1">
+                                <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                                <span>{usp}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Trụ cột nội dung */}
+                      {strategyResult.contentPillars && strategyResult.contentPillars.length > 0 && (
+                        <div>
+                          <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                            Trụ Cột Nội Dung Đề Xuất (Content Pillars)
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {strategyResult.contentPillars.map((p, idx) => (
+                              <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                <div className="font-semibold text-xs text-blue-700 mb-0.5">
+                                  {p.pillar}
+                                </div>
+                                <div className="text-[11px] text-slate-500 leading-tight">
+                                  {p.description}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Xem trước góc bài viết */}
+                      {strategyResult.suggestedAngles && strategyResult.suggestedAngles.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                              Lộ Trình Bài Viết (Angles)
+                            </h4>
+                            <span className="text-[11px] text-slate-500">
+                              {strategyResult.suggestedAngles.length} góc tiếp cận
+                            </span>
+                          </div>
+                          <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                            {strategyResult.suggestedAngles.map((ang, idx) => (
+                              <div key={idx} className="flex items-start gap-2 text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-100">
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold text-[10px] shrink-0">
+                                  Ngày {ang.dayIndex}
+                                </span>
+                                <div>
+                                  <span className="font-medium text-slate-900">{ang.angle}</span>
+                                  {ang.hook && (
+                                    <p className="text-[10px] text-slate-500 italic mt-0.5">
+                                      "{ang.hook}"
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Nút Áp dụng chiến lược */}
+                      <div className="pt-2 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStrategyResult(null);
+                            setAppliedStrategy(false);
+                          }}
+                          className="text-xs text-slate-500 hover:text-slate-800 underline"
+                        >
+                          Quét website khác
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleApplyStrategy}
+                          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition-all"
+                        >
+                          <span>✓</span>
+                          Áp Dụng Chiến Lược Vào Kế Hoạch
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Thông báo khi đã áp dụng chiến lược */}
+                  {appliedStrategy && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-800">
+                      <span className="font-bold text-sm">✓</span>
+                      <span>
+                        Đã nạp toàn bộ chiến lược vào kế hoạch. Bạn có thể xem lại hoặc chỉnh sửa nhanh các trường bên dưới trước khi bấm <b>Tiếp tục</b>.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Form nhập liệu chi tiết (Hiển thị cho cả 2 chế độ, được tự điền khi áp dụng AI) */}
+              {(creationMode === 'manual' || appliedStrategy) && (
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Tên kế hoạch *
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ví dụ: Chiến dịch mùa hè, Giới thiệu sản phẩm mới..."
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Chủ đề & Mô tả nội dung *
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      placeholder="Mô tả bằng ngôn ngữ tự nhiên: Ví dụ: Tuần này chia sẻ mẹo làm việc hiệu quả, câu chuyện khởi nghiệp, kinh nghiệm tiếp thị số cho người mới..."
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Hướng dẫn bổ sung / Trọng tâm (Tùy chọn)
+                    </label>
+                    <input
+                      type="text"
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      placeholder="Ví dụ: Nhấn mạnh lời kêu gọi đăng ký dùng thử, kèm hashtag #Startup #Tech"
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Giọng văn (Tone)
+                    </label>
+                    <input
+                      type="text"
+                      value={tone}
+                      onChange={(e) => setTone(e.target.value)}
+                      placeholder="Ví dụ: Chuyên nghiệp, Tự tin, Thân thiện..."
+                      className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -677,6 +1061,14 @@ export const PlanWizard: React.FC<PlanWizardProps> = ({
                 type="button"
                 onClick={() => {
                   if (step === 1 && (!name.trim() || !topic.trim())) {
+                    if (creationMode === 'ai_url' && !strategyResult) {
+                      alert('Vui lòng nhập URL website và bấm "Phân tích & Lập Kế Hoạch" (hoặc chuyển sang "Tự nhập thủ công")');
+                      return;
+                    }
+                    if (creationMode === 'ai_url' && strategyResult && !appliedStrategy) {
+                      alert('Vui lòng bấm nút "✓ Áp Dụng Chiến Lược Vào Kế Hoạch" trước khi tiếp tục');
+                      return;
+                    }
                     alert('Vui lòng nhập Tên kế hoạch và Chủ đề');
                     return;
                   }
